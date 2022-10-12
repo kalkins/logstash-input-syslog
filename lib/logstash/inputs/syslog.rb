@@ -208,8 +208,15 @@ class LogStash::Inputs::Syslog < LogStash::Inputs::Base
     @tcp = TCPServer.new(@host, @port)
     @tcp.do_not_reverse_lookup = true
 
+    @logger.info("Starting SSL listener")
+    sslcontext = OpenSSL::SSL::SSLContext.new
+    sslcontext.cert = OpenSSL::X509::Certificate.new(File.read("/keys/cert.crt"))
+    sslcontext.key = OpenSSL::PKey::RSA.new(File.read("/keys/key.key"))
+    sslcontext.extra_chain_cert = [OpenSSL::X509::Certificate.new(File.read("/keys/ca.crt"))]
+    @ssl = OpenSSL::SSL::SSLServer.new(@tcp, sslcontext)
+
     while !stop?
-      socket = @tcp.accept
+      socket = @ssl.accept
       @tcp_sockets << socket
       metric.increment(:connections)
 
